@@ -3,6 +3,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define EQUALS 0
+#define SP 7
+
 /**
  * Load the binary bytes from a .ls8 source file into a RAM array
  */
@@ -58,6 +61,33 @@ void alu(struct cpu *cpu, enum alu_op op, unsigned char regA, unsigned char regB
     cpu->reg[regA] = cpu->reg[regA] + cpu->reg[regB];
     break;
     // TODO: implement more ALU ops
+  case ALU_OR:
+    cpu->reg[regA] = cpu->reg[regA] | cpu->reg[regB];
+    break;
+
+  case ALU_AND:
+    cpu->reg[regA] = cpu->reg[regA] & cpu->reg[regB];
+    break;
+
+  case ALU_XOR:
+    cpu->reg[regA] = cpu->reg[regA] ^ cpu->reg[regB];
+    break;
+
+  case ALU_NOT:
+    cpu->reg[regA] = ~cpu->reg[regA];
+    break;
+
+  case ALU_SHL:
+    cpu->reg[regA] = cpu->reg[regA] << cpu->reg[regB];
+    break;
+
+  case ALU_SHR:
+    cpu->reg[regA] = cpu->reg[regA] >> cpu->reg[regB];
+    break;
+
+  case ALU_MOD:
+    cpu->reg[regA] = cpu->reg[regA] % cpu->reg[regB];
+    break;
   }
 }
 
@@ -112,41 +142,41 @@ void cpu_run(struct cpu *cpu)
     case PUSH:
       // reg[7] is stack pointer
       // start of stack at RAM[0xF3]
-      if (cpu->reg[7] == 0)
+      if (cpu->reg[SP] == 0)
       {
-        cpu->reg[7] = 0xF4;
+        cpu->reg[SP] = 0xF4;
       }
-      cpu->reg[7]--;
-      cpu->ram[cpu->reg[7]] = cpu->reg[ops[0]];
+      cpu->reg[SP]--;
+      cpu->ram[cpu->reg[SP]] = cpu->reg[ops[0]];
 
       break;
 
     case POP:
-      if (cpu->reg[7] == 0 || cpu->reg[7] == 0xF4)
+      if (cpu->reg[SP] == 0 || cpu->reg[SP] == 0xF4)
       {
         fprintf(stderr, "error: no items in stack!\n");
         break;
       }
-      cpu->reg[ops[0]] = cpu->ram[cpu->reg[7]];
-      cpu->reg[7]++;
+      cpu->reg[ops[0]] = cpu->ram[cpu->reg[SP]];
+      cpu->reg[SP]++;
       break;
 
     case CALL:
       // NOT DRY - modified copy/paste'd PUSH code
-      if (cpu->reg[7] == 0)
+      if (cpu->reg[SP] == 0)
       {
-        cpu->reg[7] = 0xF4;
+        cpu->reg[SP] = 0xF4;
       }
-      cpu->reg[7]--;
-      cpu->ram[cpu->reg[7]] = cpu->pc + 2;
+      cpu->reg[SP]--;
+      cpu->ram[cpu->reg[SP]] = cpu->pc + 2;
 
       cpu->pc = cpu->reg[ops[0]] - 2;
       break;
 
     case RET:
       // NOT DRY - some modified copy/paste'd POP code
-      cpu->pc = cpu->ram[cpu->reg[7]];
-      cpu->reg[7]++;
+      cpu->pc = cpu->ram[cpu->reg[SP]];
+      cpu->reg[SP]++;
       cpu->pc -= 1 + numOps;
       break;
 
@@ -168,7 +198,7 @@ void cpu_run(struct cpu *cpu)
 
     case JEQ:
       // 0 -> equal values flag
-      if (FLAG == 0)
+      if (FLAG == EQUALS)
       {
         cpu->pc = cpu->reg[ops[0]];
         cpu->pc -= 1 + numOps;
@@ -176,7 +206,7 @@ void cpu_run(struct cpu *cpu)
       break;
 
     case JNE:
-      if (FLAG != 0)
+      if (FLAG != EQUALS)
       {
         cpu->pc = cpu->reg[ops[0]];
         cpu->pc -= 1 + numOps;
@@ -186,6 +216,12 @@ void cpu_run(struct cpu *cpu)
     case JMP:
       cpu->pc = cpu->reg[ops[0]];
       cpu->pc -= 1 + numOps;
+      break;
+
+    // extended case
+    // ADDI - adds value ops[0] to register number ops[1]
+    case ADDI:
+      cpu->reg[ops[1]] = cpu->reg[ops[1]] + ops[0];
       break;
 
     default:
